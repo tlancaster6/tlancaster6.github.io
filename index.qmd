@@ -1,0 +1,31 @@
+---
+title: "Tucker Lancaster"
+subtitle: "I build computer vision and machine learning systems for animal behavior analysis — multi-camera 3D reconstruction, pose estimation and tracking, and edge-deployed action recognition."
+image: profile.jpg
+about:
+  template: trestles
+  image-shape: round
+  image-width: 15em
+  links:
+    - icon: github
+      text: GitHub
+      href: https://github.com/tlancaster6
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/tuckerlancaster
+    - icon: mortarboard
+      text: Google Scholar
+      href: https://scholar.google.com/citations?user=D124kcgAAAAJ&hl=en
+    - icon: envelope
+      text: Email
+      href: "mailto:tuckerlancaster@gmail.com"
+    - icon: file-earmark-pdf
+      text: CV
+      href: cv.qmd
+---
+
+I recently completed a PhD in Quantitative Biosciences at Georgia Tech, with a minor in Machine Learning, where I built open-source Python libraries for 3D animal tracking in naturalistic environments. My work spans multi-camera geometry, 3D reconstruction, multi-object tracking, pose estimation, and edge deployment — shipping tools that run in production across dozens of research tanks and scale from Raspberry Pi units to 12-camera refractive arrays. I'm looking for industry roles applying computer vision to real-world problems.
+
+{{< video https://youtu.be/rNewOSU_hFk >}}
+
+[See projects →](projects.qmd){.btn .btn-primary .me-2 role="button"} [Download CV →](cv.qmd){.btn .btn-outline-primary role="button"}

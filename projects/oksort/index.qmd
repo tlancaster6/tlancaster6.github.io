@@ -1,0 +1,52 @@
+---
+title: "OKSort"
+description: "A multi-object tracker that swaps bounding-box IoU for keypoint similarity — outperforming bbox-based and appearance-based trackers on deformable, non-standard subjects while staying an order of magnitude faster than appearance methods."
+date: 2025-10-01
+image: hero.png
+categories: [multi-object-tracking, pose-estimation]
+---
+
+## Hook
+
+The first multi-object tracker to embed Object Keypoint Similarity directly into the SORT-family predict–match–update loop, purpose-built for deformable subjects where bounding boxes poorly describe body overlap.
+
+## The problem
+
+Multi-object trackers in the SORT lineage (SORT, ByteTrack, OC-SORT, BoT-SORT, StrongSORT) associate detections across frames using bounding-box IoU and, optionally, learned appearance embeddings. Both fail on specific kinds of subjects:
+
+- **Deformable and elongated bodies** — a diagonal fish or a curled animal has an axis-aligned bounding box that is mostly background, so box IoU decouples from actual body overlap.
+- **Visually near-identical subjects** — appearance embeddings trained on pedestrian datasets have no discriminative signal and can actively hurt performance by assigning tracks based on irrelevant features.
+- **Compute budgets that exclude heavy ReID backbones** — appearance-based trackers run an order of magnitude slower than pure-motion trackers.
+
+Any domain doing keypoint detection on deformable subjects — sports analytics, surgical instruments, livestock, behavioral neuroscience — has some subset of these problems.
+
+## What I built
+
+OKSort extends the SORT-family loop with three changes:
+
+1. **Object Keypoint Similarity as the association metric**, replacing bounding-box IoU. OKS is scale-normalized and per-keypoint confidence-weighted, so it degrades gracefully when parts of the subject are occluded or poorly localized.
+2. **A 24-dimensional Kalman filter** that tracks all six keypoints jointly (6 points × 2D position + 2D velocity), with measurement noise scaled inversely by keypoint confidence. Well-localized keypoints dominate state updates; low-confidence ones do not pollute them.
+3. **An orientation-curvature matching term** that augments the OKS cost with the cosine similarity of spine heading vectors between predicted and observed poses. Combined with ByteTrack-style two-phase matching, OC-SORT-style observation-centric recovery, and a merger-detection heuristic that extends the unmatched-track coast limit from 1 s to 3 s when two subjects collapse into one detection.
+
+OKSort is used in production as the per-camera tracking stage of [AquaPose](../aquapose/), but it is packaged as a standalone library because the approach transfers to any domain with per-frame keypoint detections.
+
+## Results
+
+Benchmarked against seven alternatives — six bounding-box trackers (ByteTrack, OC-SORT, BoT-SORT, BoT-SORT-ReID, SFSORT, StrongSORT) and one keypoint-based baseline (KeySort) — on 9,340 frames of dense multi-subject tracking (72,381 detections, 14.8% occlusion rate). All trackers received identical ground-truth detections, so differences are attributable entirely to association quality:
+
+- **Highest HOTA (0.452)** — **+8.0% over the best bounding-box tracker** (BoT-SORT, 0.419).
+- **+31% over KeySort** (0.345), a keypoint tracker that uses raw Euclidean distance rather than scale-normalized OKS. Isolates the normalization as the source of the advantage.
+- **Highest aggregate HOTA on 10 of 12 cameras** (0.563 across the full array); leads on all six of the densest camera views (>20,000 detections each), with the advantage growing with detection density.
+- **16× faster than StrongSORT** and well within the offline-pipeline compute budget, while 2–3× slower than the fastest bounding-box-only trackers.
+
+Appearance-based re-identification actively hurt performance on this data: BoT-SORT-ReID scored 0.014 HOTA *below* the same tracker without ReID. Pedestrian-trained ReID features provide no discriminative signal for visually similar non-human subjects — and can inject noise into otherwise clean geometric associations.
+
+## Stack
+
+Python, NumPy, SciPy. Evaluated with TrackEval (MOTChallenge format); compared against trackers from the `boxmot` library.
+
+## Links
+
+- GitHub: [tlancaster6/OKSort](https://github.com/tlancaster6/OKSort)
+- Used in production by: [AquaPose](../aquapose/)
+- Paper: Lancaster et al. (in prep) — methodological contribution presented in the AquaPose chapter

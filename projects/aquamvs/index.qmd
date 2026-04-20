@@ -1,0 +1,62 @@
+---
+title: "AquaMVS"
+description: "Dense multi-view stereo reconstruction built on RoMa v2 transformer feature matching, extended with a refractive camera model for sub-millimeter environmental reconstruction through air-water interfaces."
+date: 2025-06-15
+image: hero.png
+categories: [computer-vision, 3d-reconstruction]
+---
+
+## Hook
+
+Dense 3D reconstruction of submerged environments from calibrated multi-camera video, with a refractive projection model threaded through every geometric stage — sparse matching, dense depth estimation, multi-view fusion, and surface reconstruction.
+
+## The problem
+
+Multi-view stereo is a mature computer vision problem with strong off-the-shelf solutions (COLMAP, OpenMVS, commercial photogrammetry packages). None of them handle refraction correctly. The pinhole camera model they depend on is a physical approximation that breaks at air–water interfaces: epipolar geometry is no longer a straight line, feature-match correspondences drift, and the errors compound through every downstream stage.
+
+Treating refraction as post-hoc distortion does not scale — each pipeline stage needs geometry-aware projection, or the errors propagate. And the research tools that do handle refraction typically target single moving cameras on small objects, not simultaneous multi-camera arrays imaging tank-floor-scale environments.
+
+## What I built
+
+AquaMVS threads the shared [AquaCal](../aquacal/) refractive projection model through every geometric operation in a dense MVS pipeline. Projection operations are reformulated in PyTorch so every stage is GPU-accelerated and differentiable; forward projection runs ten fixed Newton-Raphson iterations against the Snell's-law constraint, with an analytical Jacobian that is compatible with autograd.
+
+Two complementary reconstruction pathways share the same refractive backbone:
+
+1. **RoMa v2** — a transformer-based dense warp matcher that produces pixel-level correspondence fields. Highest-density reconstructions where visual texture is available.
+2. **SuperPoint + LightGlue + plane-sweep stereo** — sparse feature matching establishes per-pixel depth bounds; a plane-sweep cost volume (NCC or SSIM photometric similarity) samples depth hypotheses within those bounds, with sub-pixel parabolic refinement.
+
+For time-series reconstruction, temporal median filtering suppresses transient objects (swimming fish, debris) so the reconstructed geometry reflects the static environment. Per-camera depth maps are geometrically filtered, back-projected, and fused via voxel-grid downsampling with normal estimation. The fused point cloud is converted to a textured triangle mesh via screened Poisson surface reconstruction.
+
+## Results
+
+Evaluated on real video from a 13-camera rig imaging a 2 m submerged arena:
+
+**Reconstruction density.** The RoMa pathway produced **14.3 million points** and a **2.2 million-vertex mesh** from a single frame — 2.1× the density of the LightGlue + plane-sweep pathway, at 14% lower wall-clock time (1960 s vs. 2271 s on a laptop RTX 3060).
+
+**Dimensional accuracy** against known tank geometry, measured purely from the reconstructed point cloud (no reference dimensions enter the computation):
+
+| Measurement | Reconstructed | Reference | Error |
+|---|---|---|---|
+| Tank diameter at sand level | 1888 mm | 1871 mm | **<1%** |
+| Tank diameter at water surface | 1960 mm | ~1956 mm | **<1%** |
+
+The boundary circle fit at sand level had an RMS residual of 3.5 mm, confirming that the reconstruction recovers the circular cross-section faithfully.
+
+**Temporal consistency** across five consecutive reconstructions of the static environment — any variation is an upper bound on reconstruction noise, since the substrate is fixed:
+
+- **~85–90% of pixels show frame-to-frame height differences below 0.5 mm.**
+- **~95% fall below 1.0 mm.**
+- No systematic drift.
+
+Qualitatively, the reconstructed surfaces resolve biologically meaningful features at the ~40 mm scale of substrate relief: bowers (male-constructed mound structures), sand gradients, and clean sand-to-wall transitions at the tank perimeter.
+
+## Stack
+
+Python, PyTorch, RoMa v2, SuperPoint + LightGlue, OpenCV, NumPy, Open3D (point-cloud ops and surface reconstruction).
+
+## Links
+
+- Install: `pip install aquamvs`
+- GitHub: [tlancaster6/AquaMVS](https://github.com/tlancaster6/AquaMVS)
+- Companion tools: [AquaCal](../aquacal/) (calibration), [AquaPose](../aquapose/) (animal tracking)
+- Paper: Lancaster et al. (in prep)

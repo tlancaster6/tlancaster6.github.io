@@ -1,0 +1,49 @@
+project:
+  type: website
+  output-dir: docs
+  render:
+    - "index.qmd"
+    - "projects.qmd"
+    - "projects/**/*.qmd"
+    - "cv.qmd"
+  resources:
+    - CNAME
+    - .nojekyll
+
+website:
+  title: "Tucker Lancaster"
+  site-url: https://tuckerlancaster.com
+  description: "Computer vision and machine learning engineer. 3D multi-camera reconstruction, pose estimation, multi-object tracking, and edge-deployed action recognition."
+  image: profile.jpg
+  open-graph: true
+  twitter-card: true
+
+  navbar:
+    right:
+      - href: index.qmd
+        text: Home
+      - href: projects.qmd
+        text: Projects
+      - href: cv.qmd
+        text: CV
+      - icon: github
+        href: https://github.com/tlancaster6
+        aria-label: GitHub
+      - icon: linkedin
+        href: https://linkedin.com/in/tuckerlancaster
+        aria-label: LinkedIn
+
+  page-footer:
+    left: "© 2026 Tucker Lancaster"
+    right:
+      - icon: envelope
+        href: "mailto:tuckerlancaster@gmail.com"
+        aria-label: Email
+
+format:
+  html:
+    theme:
+      light: cosmo
+      dark: darkly
+    css: styles.css
+    toc: true

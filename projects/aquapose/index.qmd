@@ -1,0 +1,64 @@
+---
+title: "AquaPose"
+description: "End-to-end 3D pose tracking for many near-identical animals behind a refractive interface, with identity maintained using geometry alone — no appearance features required."
+date: 2026-03-15
+image: hero.png
+categories: [computer-vision, 3d-reconstruction, multi-object-tracking, pose-estimation]
+---
+
+## Hook
+
+A vertically integrated pipeline from synchronized multi-camera video to per-fish 3D midline trajectories, holding identity across thousands of frames of heavy occlusion using geometric consistency alone.
+
+## The problem
+
+Multi-camera 3D pose tracking is well-studied for humans, lab mice, and other terrestrial subjects. It is not well-studied for the combination of:
+
+- **Many near-identical subjects** under heavy occlusion, where appearance-based re-identification provides no discriminative signal.
+- **Refractive imaging geometry** — cameras looking through an air–water interface, which breaks the pinhole projection model that standard multi-view geometry depends on.
+- **Long continuous recordings**, where even a 0.01% per-frame identity error compounds to an identity swap every ~5 minutes at 30 fps.
+
+These constraints stack. Accurate cross-view identity association needs accurate 3D geometry; accurate 3D geometry in aquatic settings needs refraction handling; and long-run identity on visually similar subjects needs something other than appearance embeddings. To my knowledge, no existing tool addresses this combination.
+
+## What I built
+
+Five stages, from multi-camera video to 3D trajectories:
+
+1. **Oriented bounding box detection** (Ultralytics YOLO) — rotated boxes that hug elongated bodies at arbitrary orientations, avoiding the wasted crop area of axis-aligned boxes on diagonal subjects.
+2. **Six-keypoint pose estimation** on affine-warped crops (YOLO Pose). A midline skeleton (nose → tail) matches the laterally symmetric body plan; branching skeletons used for limbed animals don't transfer.
+3. **Per-camera tracking via [OKSort](../oksort/)** — a keypoint-based multi-object tracker I packaged as a standalone library because the approach generalizes beyond this application.
+4. **Cross-view identity association** — per-chunk (300-frame) stateless matching via ray-based affinity scoring under the refractive model, partitioned into identity groups by Leiden community detection. Each chunk re-solves identity from scratch; there is no "lock it in and pray" identity map to drift.
+5. **Refraction-aware triangulation** — confidence-weighted DLT under the shared [AquaCal](../aquacal/) refractive projection model, with optional B-spline midline fitting.
+
+Long recordings run as fixed chunks with Kalman and identity state carried across boundaries, so a failure in one chunk cannot propagate. A global stitcher reconciles chunk-local IDs using per-fish body length as a biometric to detect and correct residual swaps.
+
+**Training strategy.** The pipeline bootstraps from a small manual annotation set (43 OBB images) and iteratively self-labels: its own 3D reconstructions reproject back into each camera view as pseudo-labels, optionally human-reviewed in Label Studio, then fed into retraining. Thin-plate-spline elastic augmentation synthesizes the high-curvature postures that are behaviorally interesting but underrepresented in real data. A targeted wall-fish augmentation pipeline inpaints easy sand-background fish out of training images, forcing the detector to learn the hard wall-adjacent cases.
+
+## Results
+
+Evaluated on 9,450 frames (315 s at 30 fps) of 9 *Aulonocara* sp. "Yellow Head" across 12 synchronized cameras — median nearest-neighbor distance of 1.0 body length, 14.8% 2D occlusion rate, 6 near-identical females:
+
+- **1 confirmed identity swap** across the full run, occurring in the first 7% of the recording.
+- **95.6% reconstruction coverage** (81,291 of 85,050 possible fish-frames).
+- **At least 8 of 9 fish reconstructed in 94.9% of frames.**
+- **Median reprojection error: 2.82 px.**
+- **End-to-end throughput: 4.26 fps** across 12 cameras on a single desktop GPU (RTX 4070).
+
+**Long-duration stability.** On a follow-up 5.8-hour continuous recording (~628,000 frames, 24.5M detections), reconstruction coverage and reprojection error showed no systematic degradation over the run. This is the failure mode that typically kills multi-object trackers on long recordings — identity error compounds frame by frame — and AquaPose avoids it by construction: the per-chunk stateless cross-view association re-solves identity from geometry each window, rather than carrying errors forward indefinitely.
+
+**Training-data ablations** quantified the contribution of each intervention:
+
+- OBB detection on wall-adjacent fish improved **+25.5 mAP points** (0.398 → 0.653 mAP₅₀₋₉₅; 64% relative) from manual-only through pseudo-labeling, hard-case curation, and wall augmentation.
+- Pose precision rose from 0.948 to 0.992 — a **74% relative error reduction.**
+- TPS elastic augmentation reduced curvature-dependent accuracy loss on the highest-curvature tercile by 11%.
+
+## Stack
+
+Python, PyTorch, Ultralytics YOLO, OpenCV, NumPy, SciPy, Leiden community detection, SQLite, HDF5, Label Studio.
+
+## Links
+
+- Install: `pip install aquapose`
+- GitHub: [tlancaster6/AquaPose](https://github.com/tlancaster6/AquaPose)
+- Companion tools: [OKSort](../oksort/) (tracker), [AquaCal](../aquacal/) (calibration), [AquaMVS](../aquamvs/) (environment reconstruction)
+- Paper: Lancaster et al. (in prep)

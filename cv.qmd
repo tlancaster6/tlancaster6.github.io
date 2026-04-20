@@ -1,0 +1,5 @@
+---
+title: "CV"
+---
+
+CV coming soon. In the meantime, the [projects](projects.qmd) page is the best overview of my technical work, and you can reach me at [tuckerlancaster@gmail.com](mailto:tuckerlancaster@gmail.com).
