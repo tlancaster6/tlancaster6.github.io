@@ -307,11 +307,8 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#hook" id="toc-hook" class="nav-link active" data-scroll-target="#hook">Hook</a></li>
-  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">The problem</a></li>
-  <li><a href="#what-i-built" id="toc-what-i-built" class="nav-link" data-scroll-target="#what-i-built">What I built</a></li>
-  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
-  <li><a href="#stack" id="toc-stack" class="nav-link" data-scroll-target="#stack">Stack</a></li>
+  <li><a href="#system" id="toc-system" class="nav-link active" data-scroll-target="#system">System</a></li>
+  <li><a href="#performance" id="toc-performance" class="nav-link" data-scroll-target="#performance">Performance</a></li>
   <li><a href="#links" id="toc-links" class="nav-link" data-scroll-target="#links">Links</a></li>
   </ul>
 </nav>
@@ -354,46 +351,20 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="hook" class="level2">
-<h2 class="anchored" data-anchor-id="hook">Hook</h2>
-<p>An end-to-end edge-ML system deployed per experimental tank on $153 of hardware, detecting time-sensitive behavioral events in real time and triggering a human-in-the-loop action window within seconds.</p>
+<p>SARTAB is an end-to-end edge-ML system deployed per experimental tank on $153 of hardware, detecting time-sensitive behavioral events in real time and triggering a human-in-the-loop action window within seconds.</p>
+<p>Neurogenomic experiments depend on collecting tissue within a ~60–90 minute window after a specific behavior occurs — miss the window, lose the sample. Doing this by manual observation doesn’t scale: the behavior is rare, the observer is expensive, and running multiple parallel replicates multiplies both problems. Existing real-time pose estimation tools (DLC-Live, EthoLoop) require a GPU-equipped workstation per replicate, which makes per-tank deployment cost-prohibitive and operationally brittle. The engineering constraint was to detect the triggering behavior without human supervision, on inexpensive hardware that replicates tank-by-tank without a GPU in sight.</p>
+<section id="system" class="level2">
+<h2 class="anchored" data-anchor-id="system">System</h2>
+<p>Each SARTAB unit is a $153 self-contained device: a Raspberry Pi 4 paired with a Pi Camera v2 and a Google Coral USB Edge TPU accelerator. Units mount above experimental tanks and operate independently — capturing video, running inference locally, and emailing notifications when the target behavior is detected.</p>
+<p>Object detection runs in two stages, both networks compiled for the Edge TPU. An ROI detector locates the breeding pipe entrance in the full frame; because the pipe is stationary, this runs once every five minutes and the bounding box is cached. A fish detector (<em>Chindongo demasoni</em>) then runs within the cropped ROI at ~5 fps — well within the TPU’s ~7.5 fps ceiling — while the camera records continuously at 30 fps for archival. Both networks are EfficientDet-Lite0, quantized to int8 via full-integer post-training quantization and compiled with the Google Coral Edge TPU compiler. Lite1 offered marginal accuracy gains (+0.014 mAP) at &gt;50% higher inference time; Lite0 was the right accuracy/latency point for this hardware.</p>
+<p>Behavior detection reduces the complex courtship display to a spatial heuristic. <em>Chindongo demasoni</em> courtship co-occurs reliably with a simple observable: two fish present inside the breeding pipe for more than a few consecutive seconds. The pipeline computes the <em>double-occupancy fraction</em> — proportion of frames in the last 60 s where ROI occupancy was exactly 2 — and compares it every 30 s against a threshold (0.207, set via logistic regression on hand-labeled clips). Threshold exceeded, behavior fires, and the unit emails a short video clip of the event. Notifications are rate-limited (≥10 min between alerts, ≤20 per day) to prevent alert fatigue during extended courtship bouts. At night, the unit switches to a passive mode that converts H.264 recordings to MP4 and uploads them to cloud storage for offline analysis.</p>
 </section>
-<section id="the-problem" class="level2">
-<h2 class="anchored" data-anchor-id="the-problem">The problem</h2>
-<p>Neurogenomic experiments depend on collecting tissue within a ~60–90 minute window after a specific behavior occurs — miss the window, lose the sample. Doing this by manual observation doesn’t scale: the behavior is rare, the observer is expensive, and running multiple parallel replicates multiplies both problems. Existing real-time pose estimation tools (DLC-Live, EthoLoop) require a GPU-equipped workstation per replicate, which makes per-tank deployment cost-prohibitive and operationally brittle.</p>
-<p>The engineering constraint: detect the triggering behavior continuously, 24/7, on inexpensive hardware that replicates tank-by-tank without a GPU in sight.</p>
-</section>
-<section id="what-i-built" class="level2">
-<h2 class="anchored" data-anchor-id="what-i-built">What I built</h2>
-<p>SARTAB runs on a <strong>$153 self-contained unit</strong> — a Raspberry Pi 4 with a Pi Camera v2 and a Google Coral USB Edge TPU accelerator. Each unit mounts above a tank and operates independently: captures video, runs inference locally, emails notifications when the target behavior is detected.</p>
-<p><strong>Two-stage object detection</strong>, both networks compiled for the Edge TPU:</p>
-<ol type="1">
-<li><strong>ROI detection</strong> locates the breeding pipe entrance in the full frame. Because the pipe is stationary, this runs once every 5 minutes and the bounding box is cached.</li>
-<li><strong>Fish detection</strong> (<em>Chindongo demasoni</em>) runs within the cropped ROI at ~5 fps — well within the TPU’s ~7.5 fps ceiling — while the camera records continuously at 30 fps for archival.</li>
-</ol>
-<p>Both networks are <strong>EfficientDet-Lite0</strong> models, quantized to int8 via full-integer post-training quantization and compiled with the Google Coral Edge TPU compiler. Lite1 offered marginal accuracy gains (+0.014 mAP) at &gt;50% higher inference time; Lite0 was the right accuracy/latency point for this hardware.</p>
-<p><strong>Behavior detection reduces the complex courtship display to a spatial heuristic.</strong> The <em>Chindongo demasoni</em> courtship sequence co-occurs reliably with a simple observable: two fish present inside the breeding pipe for more than a few consecutive seconds. The pipeline computes the <em>double-occupancy fraction</em> — proportion of frames in the last 60 s where ROI occupancy was exactly 2 — and compares it every 30 s against a threshold (0.207, set via logistic regression on hand-labeled clips). Threshold exceeded, behavior fires.</p>
-<p><strong>Notification closes the loop.</strong> On detection, the unit emails a short video clip of the event to the researcher, who visually confirms and decides whether to collect tissue. Notifications are rate-limited (≥10 min between alerts, ≤20 per day) to prevent alert fatigue during extended courtship bouts. At night, the unit switches to a passive mode that converts H.264 recordings to MP4 and uploads them to cloud storage for offline analysis.</p>
-</section>
-<section id="results" class="level2">
-<h2 class="anchored" data-anchor-id="results">Results</h2>
-<p><strong>Detection accuracy</strong> on a 221-image validation set:</p>
-<ul>
-<li>ROI detector: <strong>mAP ≈ 0.97</strong> after quantization, vs.&nbsp;0.999 for a GPU-based YOLO-V5s reference.</li>
-<li>Fish detector: <strong>mAP 0.72</strong> after quantization, <strong>precision 0.948, recall 0.953</strong> — a 0.09 mAP deficit vs.&nbsp;the GPU reference that I accepted to eliminate per-tank GPU hardware.</li>
-<li><strong>Quantization cost: at most 0.022 mAP loss</strong> across either detector — a surprisingly cheap tradeoff for TPU compatibility.</li>
-<li><strong>Data efficiency:</strong> 200 labeled images reach 88% of the full-2007-image performance. Diminishing returns set in early.</li>
-</ul>
-<p><strong>Classification robustness:</strong></p>
-<ul>
-<li><strong>Perfect classification</strong> of all 32 held-out courtship / non-courtship clips, under any threshold between 0.02 and 0.27 — a decision boundary that is itself over an order of magnitude wide. Given the small validation sample, the wide viable range is arguably a stronger signal than the perfect score itself.</li>
-<li><strong>Stable at the Edge TPU’s real ~5 fps</strong> vs.&nbsp;a 30 fps reference (double-occupancy RMSE &lt; 0.008, threshold shifted by &lt; 0.004).</li>
-</ul>
-<p>SARTAB runs a 12-hour detection window each day — matched to when the fish actually court — with video archived and uploaded overnight. To date, the system has enabled my collaborator to collect <strong>tissue samples from 32 fish within the critical post-behavior IEG-expression window</strong> — extending the neurogenomic profiling paradigm, previously established for bower-building cichlids, to mbuna courtship.</p>
-</section>
-<section id="stack" class="level2">
-<h2 class="anchored" data-anchor-id="stack">Stack</h2>
-<p>Python, TensorFlow Lite, Google Coral Edge TPU compiler, OpenCV, scikit-learn (logistic regression), FiftyOne (dataset curation). Hardware: Raspberry Pi 4 Model B + Pi Camera v2 + Google Coral USB Accelerator.</p>
+<section id="performance" class="level2">
+<h2 class="anchored" data-anchor-id="performance">Performance</h2>
+<p>On a 221-image validation set, the ROI detector achieved mAP ≈ 0.97 after quantization (vs.&nbsp;0.999 for a GPU-based YOLO-V5s reference), and the fish detector achieved mAP 0.72 after quantization with precision 0.948 and recall 0.953 — a 0.09 mAP deficit vs.&nbsp;the GPU reference that I accepted to eliminate per-tank GPU hardware. Post-training quantization cost at most 0.022 mAP across either detector, a surprisingly cheap tradeoff for TPU compatibility. The detector was also data-efficient: 200 labeled images reached 88% of the full-2007-image performance, with diminishing returns setting in early.</p>
+<p>For the behavior classifier, every threshold between 0.02 and 0.27 correctly classified all 32 held-out courtship / non-courtship clips. Given the small validation sample, the wide viable range — a decision boundary over an order of magnitude wide — is arguably a stronger signal than the perfect accuracy itself. The classifier also proved stable at the Edge TPU’s real ~5 fps compared to a 30 fps reference (double-occupancy RMSE &lt; 0.008, threshold shifted by &lt; 0.004).</p>
+<p>SARTAB runs a 12-hour detection window each day — matched to when the fish actually court — with video archived and uploaded overnight. To date, the system has enabled my collaborator to collect tissue samples from 32 fish within the critical post-behavior IEG-expression window, extending the neurogenomic profiling paradigm (previously established for bower-building cichlids) to mbuna courtship.</p>
+<p><strong>Stack:</strong> Python, TensorFlow Lite, Google Coral Edge TPU compiler, OpenCV, scikit-learn (logistic regression), FiftyOne (dataset curation). Hardware: Raspberry Pi 4 Model B + Pi Camera v2 + Google Coral USB Accelerator.</p>
 </section>
 <section id="links" class="level2">
 <h2 class="anchored" data-anchor-id="links">Links</h2>

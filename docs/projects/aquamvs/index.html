@@ -311,11 +311,8 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#hook" id="toc-hook" class="nav-link active" data-scroll-target="#hook">Hook</a></li>
-  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">The problem</a></li>
-  <li><a href="#what-i-built" id="toc-what-i-built" class="nav-link" data-scroll-target="#what-i-built">What I built</a></li>
-  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
-  <li><a href="#stack" id="toc-stack" class="nav-link" data-scroll-target="#stack">Stack</a></li>
+  <li><a href="#approach" id="toc-approach" class="nav-link active" data-scroll-target="#approach">Approach</a></li>
+  <li><a href="#reconstruction-quality" id="toc-reconstruction-quality" class="nav-link" data-scroll-target="#reconstruction-quality">Reconstruction quality</a></li>
   <li><a href="#links" id="toc-links" class="nav-link" data-scroll-target="#links">Links</a></li>
   </ul>
 </nav>
@@ -358,66 +355,20 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="hook" class="level2">
-<h2 class="anchored" data-anchor-id="hook">Hook</h2>
-<p>Dense 3D reconstruction of submerged environments from calibrated multi-camera video, with a refractive projection model threaded through every geometric stage — sparse matching, dense depth estimation, multi-view fusion, and surface reconstruction.</p>
-</section>
-<section id="the-problem" class="level2">
-<h2 class="anchored" data-anchor-id="the-problem">The problem</h2>
-<p>Multi-view stereo is a mature computer vision problem with strong off-the-shelf solutions (COLMAP, OpenMVS, commercial photogrammetry packages). None of them handle refraction correctly. The pinhole camera model they depend on is a physical approximation that breaks at air–water interfaces: epipolar geometry is no longer a straight line, feature-match correspondences drift, and the errors compound through every downstream stage.</p>
-<p>Treating refraction as post-hoc distortion does not scale — each pipeline stage needs geometry-aware projection, or the errors propagate. And the research tools that do handle refraction typically target single moving cameras on small objects, not simultaneous multi-camera arrays imaging tank-floor-scale environments.</p>
-</section>
-<section id="what-i-built" class="level2">
-<h2 class="anchored" data-anchor-id="what-i-built">What I built</h2>
-<p>AquaMVS threads the shared <a href="../aquacal/">AquaCal</a> refractive projection model through every geometric operation in a dense MVS pipeline. Projection operations are reformulated in PyTorch so every stage is GPU-accelerated and differentiable; forward projection runs ten fixed Newton-Raphson iterations against the Snell’s-law constraint, with an analytical Jacobian that is compatible with autograd.</p>
-<p>Two complementary reconstruction pathways share the same refractive backbone:</p>
-<ol type="1">
-<li><strong>RoMa v2</strong> — a transformer-based dense warp matcher that produces pixel-level correspondence fields. Highest-density reconstructions where visual texture is available.</li>
-<li><strong>SuperPoint + LightGlue + plane-sweep stereo</strong> — sparse feature matching establishes per-pixel depth bounds; a plane-sweep cost volume (NCC or SSIM photometric similarity) samples depth hypotheses within those bounds, with sub-pixel parabolic refinement.</li>
-</ol>
+<p>AquaMVS produces dense 3D reconstructions of submerged environments from calibrated multi-camera video, threading a refractive projection model through every geometric stage — sparse matching, dense depth estimation, multi-view fusion, and surface reconstruction.</p>
+<p>Multi-view stereo is a mature computer vision problem with strong off-the-shelf solutions: COLMAP, OpenMVS, commercial photogrammetry packages. None of them handle refraction correctly. The pinhole camera model they depend on is a physical approximation that breaks at air–water interfaces — epipolar geometry is no longer a straight line, feature-match correspondences drift, and the errors compound through every downstream stage. Treating refraction as post-hoc distortion does not scale: each pipeline stage needs geometry-aware projection, or errors propagate. And the research tools that do handle refraction typically target single moving cameras on small objects, not simultaneous multi-camera arrays imaging tank-floor-scale environments.</p>
+<section id="approach" class="level2">
+<h2 class="anchored" data-anchor-id="approach">Approach</h2>
+<p>AquaMVS threads the shared <a href="../aquacal/">AquaCal</a> refractive projection model through every geometric operation in a dense MVS pipeline. Projection operations are reformulated in PyTorch so every stage is GPU-accelerated and differentiable; forward projection runs ten fixed Newton-Raphson iterations against the Snell’s-law constraint with an analytical Jacobian that is compatible with autograd.</p>
+<p>Two complementary reconstruction pathways share the same refractive backbone. The first uses RoMa v2 — a transformer-based dense warp matcher that produces pixel-level correspondence fields, yielding the highest-density reconstructions where visual texture is available. The second pairs SuperPoint + LightGlue sparse feature matching (which establishes per-pixel depth bounds) with plane-sweep stereo inside those bounds: a cost volume built via NCC or SSIM photometric similarity, sampled across depth hypotheses with sub-pixel parabolic refinement.</p>
 <p>For time-series reconstruction, temporal median filtering suppresses transient objects (swimming fish, debris) so the reconstructed geometry reflects the static environment. Per-camera depth maps are geometrically filtered, back-projected, and fused via voxel-grid downsampling with normal estimation. The fused point cloud is converted to a textured triangle mesh via screened Poisson surface reconstruction.</p>
 </section>
-<section id="results" class="level2">
-<h2 class="anchored" data-anchor-id="results">Results</h2>
-<p>Evaluated on real video from a 13-camera rig imaging a 2 m submerged arena:</p>
-<p><strong>Reconstruction density.</strong> The RoMa pathway produced <strong>14.3 million points</strong> and a <strong>2.2 million-vertex mesh</strong> from a single frame — 2.1× the density of the LightGlue + plane-sweep pathway, at 14% lower wall-clock time (1960 s vs.&nbsp;2271 s on a laptop RTX 3060).</p>
-<p><strong>Dimensional accuracy</strong> against known tank geometry, measured purely from the reconstructed point cloud (no reference dimensions enter the computation):</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Measurement</th>
-<th>Reconstructed</th>
-<th>Reference</th>
-<th>Error</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Tank diameter at sand level</td>
-<td>1888 mm</td>
-<td>1871 mm</td>
-<td><strong>&lt;1%</strong></td>
-</tr>
-<tr class="even">
-<td>Tank diameter at water surface</td>
-<td>1960 mm</td>
-<td>~1956 mm</td>
-<td><strong>&lt;1%</strong></td>
-</tr>
-</tbody>
-</table>
-<p>The boundary circle fit at sand level had an RMS residual of 3.5 mm, confirming that the reconstruction recovers the circular cross-section faithfully.</p>
-<p><strong>Temporal consistency</strong> across five consecutive reconstructions of the static environment — any variation is an upper bound on reconstruction noise, since the substrate is fixed:</p>
-<ul>
-<li><strong>~85–90% of pixels show frame-to-frame height differences below 0.5 mm.</strong></li>
-<li><strong>~95% fall below 1.0 mm.</strong></li>
-<li>No systematic drift.</li>
-</ul>
-<p>Qualitatively, the reconstructed surfaces resolve biologically meaningful features at the ~40 mm scale of substrate relief: bowers (male-constructed mound structures), sand gradients, and clean sand-to-wall transitions at the tank perimeter.</p>
-</section>
-<section id="stack" class="level2">
-<h2 class="anchored" data-anchor-id="stack">Stack</h2>
-<p>Python, PyTorch, RoMa v2, SuperPoint + LightGlue, OpenCV, NumPy, Open3D (point-cloud ops and surface reconstruction).</p>
+<section id="reconstruction-quality" class="level2">
+<h2 class="anchored" data-anchor-id="reconstruction-quality">Reconstruction quality</h2>
+<p>On real video from a 13-camera rig imaging a 2 m submerged arena, the RoMa pathway produced 14.3 million points and a 2.2 million-vertex mesh from a single frame — 2.1× the density of the LightGlue + plane-sweep pathway at 14% lower wall-clock time (1960 s vs.&nbsp;2271 s on a laptop RTX 3060).</p>
+<p>Dimensional accuracy, measured purely from the reconstructed point cloud with no reference dimensions entering the computation, recovered tank diameter within &lt;1% of known values at both the sand level (1888 mm reconstructed vs.&nbsp;1871 mm reference) and the water surface (1960 mm vs.&nbsp;~1956 mm). The boundary circle fit at sand level had an RMS residual of 3.5 mm, confirming that the reconstruction recovers the circular cross-section faithfully.</p>
+<p>Across five consecutive reconstructions of the static environment — any variation here is an upper bound on reconstruction noise, since the substrate is fixed — 85–90% of pixels showed frame-to-frame height differences below 0.5 mm, ~95% fell below 1.0 mm, and there was no systematic drift. Qualitatively, the reconstructed surfaces resolve biologically meaningful features at the ~40 mm scale of substrate relief: bowers (male-constructed mound structures), sand gradients, and clean sand-to-wall transitions at the tank perimeter.</p>
+<p><strong>Stack:</strong> Python, PyTorch, RoMa v2, SuperPoint + LightGlue, OpenCV, NumPy, Open3D (point-cloud ops and surface reconstruction).</p>
 </section>
 <section id="links" class="level2">
 <h2 class="anchored" data-anchor-id="links">Links</h2>

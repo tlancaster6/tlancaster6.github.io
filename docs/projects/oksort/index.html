@@ -311,11 +311,8 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#hook" id="toc-hook" class="nav-link active" data-scroll-target="#hook">Hook</a></li>
-  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">The problem</a></li>
-  <li><a href="#what-i-built" id="toc-what-i-built" class="nav-link" data-scroll-target="#what-i-built">What I built</a></li>
-  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
-  <li><a href="#stack" id="toc-stack" class="nav-link" data-scroll-target="#stack">Stack</a></li>
+  <li><a href="#approach" id="toc-approach" class="nav-link active" data-scroll-target="#approach">Approach</a></li>
+  <li><a href="#benchmark" id="toc-benchmark" class="nav-link" data-scroll-target="#benchmark">Benchmark</a></li>
   <li><a href="#links" id="toc-links" class="nav-link" data-scroll-target="#links">Links</a></li>
   </ul>
 </nav>
@@ -358,44 +355,18 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="hook" class="level2">
-<h2 class="anchored" data-anchor-id="hook">Hook</h2>
-<p>The first multi-object tracker to embed Object Keypoint Similarity directly into the SORT-family predict–match–update loop, purpose-built for deformable subjects where bounding boxes poorly describe body overlap.</p>
+<p>OKSort is a multi-object tracker that embeds Object Keypoint Similarity directly into the SORT-family predict–match–update loop — to my knowledge, the first to do so — purpose-built for deformable subjects where bounding boxes poorly describe body overlap.</p>
+<p>Multi-object trackers in the SORT lineage (SORT, ByteTrack, OC-SORT, BoT-SORT, StrongSORT) associate detections across frames using bounding-box IoU and, optionally, learned appearance embeddings. Both fail on specific kinds of subjects. For deformable and elongated bodies, an axis-aligned bounding box around a diagonal fish or a curled animal is mostly background, so box IoU decouples from actual body overlap. For visually near-identical subjects, appearance embeddings trained on pedestrian datasets have no discriminative signal and can actively hurt performance by assigning tracks based on irrelevant features. And for compute budgets that exclude heavy ReID backbones, appearance-based trackers run an order of magnitude slower than pure-motion ones. Any domain doing keypoint detection on deformable subjects — sports analytics, surgical instruments, livestock, behavioral neuroscience — has some subset of these problems.</p>
+<section id="approach" class="level2">
+<h2 class="anchored" data-anchor-id="approach">Approach</h2>
+<p>OKSort extends the SORT-family loop with three changes. First, Object Keypoint Similarity replaces bounding-box IoU as the association metric. OKS is scale-normalized and per-keypoint confidence-weighted, so it degrades gracefully when parts of the subject are occluded or poorly localized. Second, a 24-dimensional Kalman filter tracks all six keypoints jointly (six points × 2D position + 2D velocity), with measurement noise scaled inversely by keypoint confidence — well-localized keypoints dominate state updates, low-confidence ones do not pollute them. Third, an orientation-curvature matching term augments the OKS cost with the cosine similarity of spine heading vectors between predicted and observed poses. Around this are the moving parts from the best of the SORT family: ByteTrack-style two-phase matching, OC-SORT-style observation-centric recovery, and a merger-detection heuristic that extends the unmatched-track coast limit from 1 s to 3 s when two subjects collapse into one detection.</p>
+<p>OKSort runs in production as the per-camera tracking stage of <a href="../aquapose/">AquaPose</a>, but it is packaged as a standalone library because the approach transfers to any domain with per-frame keypoint detections.</p>
 </section>
-<section id="the-problem" class="level2">
-<h2 class="anchored" data-anchor-id="the-problem">The problem</h2>
-<p>Multi-object trackers in the SORT lineage (SORT, ByteTrack, OC-SORT, BoT-SORT, StrongSORT) associate detections across frames using bounding-box IoU and, optionally, learned appearance embeddings. Both fail on specific kinds of subjects:</p>
-<ul>
-<li><strong>Deformable and elongated bodies</strong> — a diagonal fish or a curled animal has an axis-aligned bounding box that is mostly background, so box IoU decouples from actual body overlap.</li>
-<li><strong>Visually near-identical subjects</strong> — appearance embeddings trained on pedestrian datasets have no discriminative signal and can actively hurt performance by assigning tracks based on irrelevant features.</li>
-<li><strong>Compute budgets that exclude heavy ReID backbones</strong> — appearance-based trackers run an order of magnitude slower than pure-motion trackers.</li>
-</ul>
-<p>Any domain doing keypoint detection on deformable subjects — sports analytics, surgical instruments, livestock, behavioral neuroscience — has some subset of these problems.</p>
-</section>
-<section id="what-i-built" class="level2">
-<h2 class="anchored" data-anchor-id="what-i-built">What I built</h2>
-<p>OKSort extends the SORT-family loop with three changes:</p>
-<ol type="1">
-<li><strong>Object Keypoint Similarity as the association metric</strong>, replacing bounding-box IoU. OKS is scale-normalized and per-keypoint confidence-weighted, so it degrades gracefully when parts of the subject are occluded or poorly localized.</li>
-<li><strong>A 24-dimensional Kalman filter</strong> that tracks all six keypoints jointly (6 points × 2D position + 2D velocity), with measurement noise scaled inversely by keypoint confidence. Well-localized keypoints dominate state updates; low-confidence ones do not pollute them.</li>
-<li><strong>An orientation-curvature matching term</strong> that augments the OKS cost with the cosine similarity of spine heading vectors between predicted and observed poses. Combined with ByteTrack-style two-phase matching, OC-SORT-style observation-centric recovery, and a merger-detection heuristic that extends the unmatched-track coast limit from 1 s to 3 s when two subjects collapse into one detection.</li>
-</ol>
-<p>OKSort is used in production as the per-camera tracking stage of <a href="../aquapose/">AquaPose</a>, but it is packaged as a standalone library because the approach transfers to any domain with per-frame keypoint detections.</p>
-</section>
-<section id="results" class="level2">
-<h2 class="anchored" data-anchor-id="results">Results</h2>
-<p>Benchmarked against seven alternatives — six bounding-box trackers (ByteTrack, OC-SORT, BoT-SORT, BoT-SORT-ReID, SFSORT, StrongSORT) and one keypoint-based baseline (KeySort) — on 9,340 frames of dense multi-subject tracking (72,381 detections, 14.8% occlusion rate). All trackers received identical ground-truth detections, so differences are attributable entirely to association quality:</p>
-<ul>
-<li><strong>Highest HOTA (0.452)</strong> — <strong>+8.0% over the best bounding-box tracker</strong> (BoT-SORT, 0.419).</li>
-<li><strong>+31% over KeySort</strong> (0.345), a keypoint tracker that uses raw Euclidean distance rather than scale-normalized OKS. Isolates the normalization as the source of the advantage.</li>
-<li><strong>Highest aggregate HOTA on 10 of 12 cameras</strong> (0.563 across the full array); leads on all six of the densest camera views (&gt;20,000 detections each), with the advantage growing with detection density.</li>
-<li><strong>16× faster than StrongSORT</strong> and well within the offline-pipeline compute budget, while 2–3× slower than the fastest bounding-box-only trackers.</li>
-</ul>
-<p>Appearance-based re-identification actively hurt performance on this data: BoT-SORT-ReID scored 0.014 HOTA <em>below</em> the same tracker without ReID. Pedestrian-trained ReID features provide no discriminative signal for visually similar non-human subjects — and can inject noise into otherwise clean geometric associations.</p>
-</section>
-<section id="stack" class="level2">
-<h2 class="anchored" data-anchor-id="stack">Stack</h2>
-<p>Python, NumPy, SciPy. Evaluated with TrackEval (MOTChallenge format); compared against trackers from the <code>boxmot</code> library.</p>
+<section id="benchmark" class="level2">
+<h2 class="anchored" data-anchor-id="benchmark">Benchmark</h2>
+<p>OKSort was benchmarked against seven alternatives — six bounding-box trackers (ByteTrack, OC-SORT, BoT-SORT, BoT-SORT-ReID, SFSORT, StrongSORT) and one keypoint-based baseline (KeySort) — on 9,340 frames of dense multi-subject tracking (72,381 detections, 14.8% occlusion rate). All trackers received identical ground-truth detections, so differences are attributable entirely to association quality. OKSort achieved the highest HOTA (0.452), 8.0% above the best bounding-box tracker (BoT-SORT, 0.419) and 31% above KeySort (0.345) — a keypoint tracker that uses raw Euclidean distance rather than scale-normalized OKS, isolating the normalization as the source of the advantage. Extended across all twelve cameras, OKSort led on ten of twelve (0.563 aggregate HOTA), with the advantage growing on the six densest camera views (&gt;20,000 detections each). Runtime is 2–3× slower than the fastest bounding-box trackers due to the per-keypoint cost matrix, but 16× faster than StrongSORT and comfortably inside the offline-pipeline compute budget.</p>
+<p>Appearance-based re-identification actively hurt performance on this data. BoT-SORT-ReID scored 0.014 HOTA <em>below</em> the same tracker without ReID. Pedestrian-trained ReID features provide no discriminative signal for visually similar non-human subjects, and they inject noise into otherwise clean geometric associations.</p>
+<p><strong>Stack:</strong> Python, NumPy, SciPy. Evaluated with TrackEval (MOTChallenge format); compared against trackers from the <code>boxmot</code> library.</p>
 </section>
 <section id="links" class="level2">
 <h2 class="anchored" data-anchor-id="links">Links</h2>

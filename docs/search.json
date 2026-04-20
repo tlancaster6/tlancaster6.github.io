@@ -11,42 +11,21 @@
     "href": "projects/oksort/index.html",
     "title": "OKSort",
     "section": "",
-    "text": "The first multi-object tracker to embed Object Keypoint Similarity directly into the SORT-family predict–match–update loop, purpose-built for deformable subjects where bounding boxes poorly describe body overlap."
+    "text": "OKSort is a multi-object tracker that embeds Object Keypoint Similarity directly into the SORT-family predict–match–update loop — to my knowledge, the first to do so — purpose-built for deformable subjects where bounding boxes poorly describe body overlap.\nMulti-object trackers in the SORT lineage (SORT, ByteTrack, OC-SORT, BoT-SORT, StrongSORT) associate detections across frames using bounding-box IoU and, optionally, learned appearance embeddings. Both fail on specific kinds of subjects. For deformable and elongated bodies, an axis-aligned bounding box around a diagonal fish or a curled animal is mostly background, so box IoU decouples from actual body overlap. For visually near-identical subjects, appearance embeddings trained on pedestrian datasets have no discriminative signal and can actively hurt performance by assigning tracks based on irrelevant features. And for compute budgets that exclude heavy ReID backbones, appearance-based trackers run an order of magnitude slower than pure-motion ones. Any domain doing keypoint detection on deformable subjects — sports analytics, surgical instruments, livestock, behavioral neuroscience — has some subset of these problems."
   },
   {
-    "objectID": "projects/oksort/index.html#hook",
-    "href": "projects/oksort/index.html#hook",
+    "objectID": "projects/oksort/index.html#approach",
+    "href": "projects/oksort/index.html#approach",
     "title": "OKSort",
-    "section": "",
-    "text": "The first multi-object tracker to embed Object Keypoint Similarity directly into the SORT-family predict–match–update loop, purpose-built for deformable subjects where bounding boxes poorly describe body overlap."
+    "section": "Approach",
+    "text": "Approach\nOKSort extends the SORT-family loop with three changes. First, Object Keypoint Similarity replaces bounding-box IoU as the association metric. OKS is scale-normalized and per-keypoint confidence-weighted, so it degrades gracefully when parts of the subject are occluded or poorly localized. Second, a 24-dimensional Kalman filter tracks all six keypoints jointly (six points × 2D position + 2D velocity), with measurement noise scaled inversely by keypoint confidence — well-localized keypoints dominate state updates, low-confidence ones do not pollute them. Third, an orientation-curvature matching term augments the OKS cost with the cosine similarity of spine heading vectors between predicted and observed poses. Around this are the moving parts from the best of the SORT family: ByteTrack-style two-phase matching, OC-SORT-style observation-centric recovery, and a merger-detection heuristic that extends the unmatched-track coast limit from 1 s to 3 s when two subjects collapse into one detection.\nOKSort runs in production as the per-camera tracking stage of AquaPose, but it is packaged as a standalone library because the approach transfers to any domain with per-frame keypoint detections."
   },
   {
-    "objectID": "projects/oksort/index.html#the-problem",
-    "href": "projects/oksort/index.html#the-problem",
+    "objectID": "projects/oksort/index.html#benchmark",
+    "href": "projects/oksort/index.html#benchmark",
     "title": "OKSort",
-    "section": "The problem",
-    "text": "The problem\nMulti-object trackers in the SORT lineage (SORT, ByteTrack, OC-SORT, BoT-SORT, StrongSORT) associate detections across frames using bounding-box IoU and, optionally, learned appearance embeddings. Both fail on specific kinds of subjects:\n\nDeformable and elongated bodies — a diagonal fish or a curled animal has an axis-aligned bounding box that is mostly background, so box IoU decouples from actual body overlap.\nVisually near-identical subjects — appearance embeddings trained on pedestrian datasets have no discriminative signal and can actively hurt performance by assigning tracks based on irrelevant features.\nCompute budgets that exclude heavy ReID backbones — appearance-based trackers run an order of magnitude slower than pure-motion trackers.\n\nAny domain doing keypoint detection on deformable subjects — sports analytics, surgical instruments, livestock, behavioral neuroscience — has some subset of these problems."
-  },
-  {
-    "objectID": "projects/oksort/index.html#what-i-built",
-    "href": "projects/oksort/index.html#what-i-built",
-    "title": "OKSort",
-    "section": "What I built",
-    "text": "What I built\nOKSort extends the SORT-family loop with three changes:\n\nObject Keypoint Similarity as the association metric, replacing bounding-box IoU. OKS is scale-normalized and per-keypoint confidence-weighted, so it degrades gracefully when parts of the subject are occluded or poorly localized.\nA 24-dimensional Kalman filter that tracks all six keypoints jointly (6 points × 2D position + 2D velocity), with measurement noise scaled inversely by keypoint confidence. Well-localized keypoints dominate state updates; low-confidence ones do not pollute them.\nAn orientation-curvature matching term that augments the OKS cost with the cosine similarity of spine heading vectors between predicted and observed poses. Combined with ByteTrack-style two-phase matching, OC-SORT-style observation-centric recovery, and a merger-detection heuristic that extends the unmatched-track coast limit from 1 s to 3 s when two subjects collapse into one detection.\n\nOKSort is used in production as the per-camera tracking stage of AquaPose, but it is packaged as a standalone library because the approach transfers to any domain with per-frame keypoint detections."
-  },
-  {
-    "objectID": "projects/oksort/index.html#results",
-    "href": "projects/oksort/index.html#results",
-    "title": "OKSort",
-    "section": "Results",
-    "text": "Results\nBenchmarked against seven alternatives — six bounding-box trackers (ByteTrack, OC-SORT, BoT-SORT, BoT-SORT-ReID, SFSORT, StrongSORT) and one keypoint-based baseline (KeySort) — on 9,340 frames of dense multi-subject tracking (72,381 detections, 14.8% occlusion rate). All trackers received identical ground-truth detections, so differences are attributable entirely to association quality:\n\nHighest HOTA (0.452) — +8.0% over the best bounding-box tracker (BoT-SORT, 0.419).\n+31% over KeySort (0.345), a keypoint tracker that uses raw Euclidean distance rather than scale-normalized OKS. Isolates the normalization as the source of the advantage.\nHighest aggregate HOTA on 10 of 12 cameras (0.563 across the full array); leads on all six of the densest camera views (&gt;20,000 detections each), with the advantage growing with detection density.\n16× faster than StrongSORT and well within the offline-pipeline compute budget, while 2–3× slower than the fastest bounding-box-only trackers.\n\nAppearance-based re-identification actively hurt performance on this data: BoT-SORT-ReID scored 0.014 HOTA below the same tracker without ReID. Pedestrian-trained ReID features provide no discriminative signal for visually similar non-human subjects — and can inject noise into otherwise clean geometric associations."
-  },
-  {
-    "objectID": "projects/oksort/index.html#stack",
-    "href": "projects/oksort/index.html#stack",
-    "title": "OKSort",
-    "section": "Stack",
-    "text": "Stack\nPython, NumPy, SciPy. Evaluated with TrackEval (MOTChallenge format); compared against trackers from the boxmot library."
+    "section": "Benchmark",
+    "text": "Benchmark\nOKSort was benchmarked against seven alternatives — six bounding-box trackers (ByteTrack, OC-SORT, BoT-SORT, BoT-SORT-ReID, SFSORT, StrongSORT) and one keypoint-based baseline (KeySort) — on 9,340 frames of dense multi-subject tracking (72,381 detections, 14.8% occlusion rate). All trackers received identical ground-truth detections, so differences are attributable entirely to association quality. OKSort achieved the highest HOTA (0.452), 8.0% above the best bounding-box tracker (BoT-SORT, 0.419) and 31% above KeySort (0.345) — a keypoint tracker that uses raw Euclidean distance rather than scale-normalized OKS, isolating the normalization as the source of the advantage. Extended across all twelve cameras, OKSort led on ten of twelve (0.563 aggregate HOTA), with the advantage growing on the six densest camera views (&gt;20,000 detections each). Runtime is 2–3× slower than the fastest bounding-box trackers due to the per-keypoint cost matrix, but 16× faster than StrongSORT and comfortably inside the offline-pipeline compute budget.\nAppearance-based re-identification actively hurt performance on this data. BoT-SORT-ReID scored 0.014 HOTA below the same tracker without ReID. Pedestrian-trained ReID features provide no discriminative signal for visually similar non-human subjects, and they inject noise into otherwise clean geometric associations.\nStack: Python, NumPy, SciPy. Evaluated with TrackEval (MOTChallenge format); compared against trackers from the boxmot library."
   },
   {
     "objectID": "projects/oksort/index.html#links",
@@ -60,42 +39,21 @@
     "href": "projects/aquamvs/index.html",
     "title": "AquaMVS",
     "section": "",
-    "text": "Dense 3D reconstruction of submerged environments from calibrated multi-camera video, with a refractive projection model threaded through every geometric stage — sparse matching, dense depth estimation, multi-view fusion, and surface reconstruction."
+    "text": "AquaMVS produces dense 3D reconstructions of submerged environments from calibrated multi-camera video, threading a refractive projection model through every geometric stage — sparse matching, dense depth estimation, multi-view fusion, and surface reconstruction.\nMulti-view stereo is a mature computer vision problem with strong off-the-shelf solutions: COLMAP, OpenMVS, commercial photogrammetry packages. None of them handle refraction correctly. The pinhole camera model they depend on is a physical approximation that breaks at air–water interfaces — epipolar geometry is no longer a straight line, feature-match correspondences drift, and the errors compound through every downstream stage. Treating refraction as post-hoc distortion does not scale: each pipeline stage needs geometry-aware projection, or errors propagate. And the research tools that do handle refraction typically target single moving cameras on small objects, not simultaneous multi-camera arrays imaging tank-floor-scale environments."
   },
   {
-    "objectID": "projects/aquamvs/index.html#hook",
-    "href": "projects/aquamvs/index.html#hook",
+    "objectID": "projects/aquamvs/index.html#approach",
+    "href": "projects/aquamvs/index.html#approach",
     "title": "AquaMVS",
-    "section": "",
-    "text": "Dense 3D reconstruction of submerged environments from calibrated multi-camera video, with a refractive projection model threaded through every geometric stage — sparse matching, dense depth estimation, multi-view fusion, and surface reconstruction."
+    "section": "Approach",
+    "text": "Approach\nAquaMVS threads the shared AquaCal refractive projection model through every geometric operation in a dense MVS pipeline. Projection operations are reformulated in PyTorch so every stage is GPU-accelerated and differentiable; forward projection runs ten fixed Newton-Raphson iterations against the Snell’s-law constraint with an analytical Jacobian that is compatible with autograd.\nTwo complementary reconstruction pathways share the same refractive backbone. The first uses RoMa v2 — a transformer-based dense warp matcher that produces pixel-level correspondence fields, yielding the highest-density reconstructions where visual texture is available. The second pairs SuperPoint + LightGlue sparse feature matching (which establishes per-pixel depth bounds) with plane-sweep stereo inside those bounds: a cost volume built via NCC or SSIM photometric similarity, sampled across depth hypotheses with sub-pixel parabolic refinement.\nFor time-series reconstruction, temporal median filtering suppresses transient objects (swimming fish, debris) so the reconstructed geometry reflects the static environment. Per-camera depth maps are geometrically filtered, back-projected, and fused via voxel-grid downsampling with normal estimation. The fused point cloud is converted to a textured triangle mesh via screened Poisson surface reconstruction."
   },
   {
-    "objectID": "projects/aquamvs/index.html#the-problem",
-    "href": "projects/aquamvs/index.html#the-problem",
+    "objectID": "projects/aquamvs/index.html#reconstruction-quality",
+    "href": "projects/aquamvs/index.html#reconstruction-quality",
     "title": "AquaMVS",
-    "section": "The problem",
-    "text": "The problem\nMulti-view stereo is a mature computer vision problem with strong off-the-shelf solutions (COLMAP, OpenMVS, commercial photogrammetry packages). None of them handle refraction correctly. The pinhole camera model they depend on is a physical approximation that breaks at air–water interfaces: epipolar geometry is no longer a straight line, feature-match correspondences drift, and the errors compound through every downstream stage.\nTreating refraction as post-hoc distortion does not scale — each pipeline stage needs geometry-aware projection, or the errors propagate. And the research tools that do handle refraction typically target single moving cameras on small objects, not simultaneous multi-camera arrays imaging tank-floor-scale environments."
-  },
-  {
-    "objectID": "projects/aquamvs/index.html#what-i-built",
-    "href": "projects/aquamvs/index.html#what-i-built",
-    "title": "AquaMVS",
-    "section": "What I built",
-    "text": "What I built\nAquaMVS threads the shared AquaCal refractive projection model through every geometric operation in a dense MVS pipeline. Projection operations are reformulated in PyTorch so every stage is GPU-accelerated and differentiable; forward projection runs ten fixed Newton-Raphson iterations against the Snell’s-law constraint, with an analytical Jacobian that is compatible with autograd.\nTwo complementary reconstruction pathways share the same refractive backbone:\n\nRoMa v2 — a transformer-based dense warp matcher that produces pixel-level correspondence fields. Highest-density reconstructions where visual texture is available.\nSuperPoint + LightGlue + plane-sweep stereo — sparse feature matching establishes per-pixel depth bounds; a plane-sweep cost volume (NCC or SSIM photometric similarity) samples depth hypotheses within those bounds, with sub-pixel parabolic refinement.\n\nFor time-series reconstruction, temporal median filtering suppresses transient objects (swimming fish, debris) so the reconstructed geometry reflects the static environment. Per-camera depth maps are geometrically filtered, back-projected, and fused via voxel-grid downsampling with normal estimation. The fused point cloud is converted to a textured triangle mesh via screened Poisson surface reconstruction."
-  },
-  {
-    "objectID": "projects/aquamvs/index.html#results",
-    "href": "projects/aquamvs/index.html#results",
-    "title": "AquaMVS",
-    "section": "Results",
-    "text": "Results\nEvaluated on real video from a 13-camera rig imaging a 2 m submerged arena:\nReconstruction density. The RoMa pathway produced 14.3 million points and a 2.2 million-vertex mesh from a single frame — 2.1× the density of the LightGlue + plane-sweep pathway, at 14% lower wall-clock time (1960 s vs. 2271 s on a laptop RTX 3060).\nDimensional accuracy against known tank geometry, measured purely from the reconstructed point cloud (no reference dimensions enter the computation):\n\n\n\nMeasurement\nReconstructed\nReference\nError\n\n\n\n\nTank diameter at sand level\n1888 mm\n1871 mm\n&lt;1%\n\n\nTank diameter at water surface\n1960 mm\n~1956 mm\n&lt;1%\n\n\n\nThe boundary circle fit at sand level had an RMS residual of 3.5 mm, confirming that the reconstruction recovers the circular cross-section faithfully.\nTemporal consistency across five consecutive reconstructions of the static environment — any variation is an upper bound on reconstruction noise, since the substrate is fixed:\n\n~85–90% of pixels show frame-to-frame height differences below 0.5 mm.\n~95% fall below 1.0 mm.\nNo systematic drift.\n\nQualitatively, the reconstructed surfaces resolve biologically meaningful features at the ~40 mm scale of substrate relief: bowers (male-constructed mound structures), sand gradients, and clean sand-to-wall transitions at the tank perimeter."
-  },
-  {
-    "objectID": "projects/aquamvs/index.html#stack",
-    "href": "projects/aquamvs/index.html#stack",
-    "title": "AquaMVS",
-    "section": "Stack",
-    "text": "Stack\nPython, PyTorch, RoMa v2, SuperPoint + LightGlue, OpenCV, NumPy, Open3D (point-cloud ops and surface reconstruction)."
+    "section": "Reconstruction quality",
+    "text": "Reconstruction quality\nOn real video from a 13-camera rig imaging a 2 m submerged arena, the RoMa pathway produced 14.3 million points and a 2.2 million-vertex mesh from a single frame — 2.1× the density of the LightGlue + plane-sweep pathway at 14% lower wall-clock time (1960 s vs. 2271 s on a laptop RTX 3060).\nDimensional accuracy, measured purely from the reconstructed point cloud with no reference dimensions entering the computation, recovered tank diameter within &lt;1% of known values at both the sand level (1888 mm reconstructed vs. 1871 mm reference) and the water surface (1960 mm vs. ~1956 mm). The boundary circle fit at sand level had an RMS residual of 3.5 mm, confirming that the reconstruction recovers the circular cross-section faithfully.\nAcross five consecutive reconstructions of the static environment — any variation here is an upper bound on reconstruction noise, since the substrate is fixed — 85–90% of pixels showed frame-to-frame height differences below 0.5 mm, ~95% fell below 1.0 mm, and there was no systematic drift. Qualitatively, the reconstructed surfaces resolve biologically meaningful features at the ~40 mm scale of substrate relief: bowers (male-constructed mound structures), sand gradients, and clean sand-to-wall transitions at the tank perimeter.\nStack: Python, PyTorch, RoMa v2, SuperPoint + LightGlue, OpenCV, NumPy, Open3D (point-cloud ops and surface reconstruction)."
   },
   {
     "objectID": "projects/aquamvs/index.html#links",
@@ -123,42 +81,21 @@
     "href": "projects/aquacal/index.html",
     "title": "AquaCal",
     "section": "",
-    "text": "A multi-camera calibration package that models the air–water interface as a physical element of the camera system — not as distortion to absorb — eliminating the depth-dependent reconstruction error that the pinhole model fundamentally cannot."
+    "text": "AquaCal is a multi-camera calibration package that models the air–water interface as a physical element of the camera system — not as distortion to absorb — eliminating the depth-dependent reconstruction error that the pinhole model fundamentally cannot.\nStandard multi-camera calibration tools (OpenCV, COLMAP, Kalibr) assume straight-line light propagation from object to sensor. For cameras imaging across an air–water interface, this is wrong: rays refract at the surface, and no amount of lens distortion parameter tuning will correct it. A pinhole optimizer will converge — reprojection error looks “good enough” — but the recovered geometry is systematically biased, and the bias grows with depth. Post-hoc correction does not fix it, because the projection model was never right to begin with. Any pipeline imaging through a refractive interface — aquaria, aquaculture, underwater robotics, submerged inspection, semi-aquatic species — inherits this."
   },
   {
-    "objectID": "projects/aquacal/index.html#hook",
-    "href": "projects/aquacal/index.html#hook",
+    "objectID": "projects/aquacal/index.html#approach",
+    "href": "projects/aquacal/index.html#approach",
     "title": "AquaCal",
-    "section": "",
-    "text": "A multi-camera calibration package that models the air–water interface as a physical element of the camera system — not as distortion to absorb — eliminating the depth-dependent reconstruction error that the pinhole model fundamentally cannot."
+    "section": "Approach",
+    "text": "Approach\nAquaCal replaces the projection function inside bundle adjustment. The optimization jointly recovers camera extrinsics, a single global water-surface height parameter, and calibration board poses, minimizing refractive reprojection error under Snell’s law rather than pinhole reprojection error.\nThe pipeline runs in four stages. Per-camera intrinsics come from in-air video of a dry ChArUco board (Zhang’s method), isolating lens parameters from refractive effects. Extrinsics are initialized via pose-graph traversal, alternating between solving for board poses and camera poses along high-confidence edges to minimize error accumulation. Joint refractive bundle adjustment is then the core optimization: forward projection reduces to a 1D root-finding problem under the flat-interface symmetry, solved via Newton-Raphson to sub-nanometer precision in 2–4 iterations, and wrapped in scipy.optimize.least_squares with Huber robust loss and Curtis–Powell–Reid column grouping for sparse-Jacobian efficiency. An optional fourth stage refines intrinsics jointly with the refractive geometry.\nA deliberate design choice: setting the refractive indices to 1.0 reduces AquaCal exactly to a standard pinhole calibration on the same solver. It is a refractive calibration package, but also a drop-in standard one."
   },
   {
-    "objectID": "projects/aquacal/index.html#the-problem",
-    "href": "projects/aquacal/index.html#the-problem",
+    "objectID": "projects/aquacal/index.html#accuracy",
+    "href": "projects/aquacal/index.html#accuracy",
     "title": "AquaCal",
-    "section": "The problem",
-    "text": "The problem\nStandard multi-camera calibration (OpenCV, COLMAP, Kalibr) assumes straight-line light propagation from object to sensor. For cameras imaging across an air–water interface, this is wrong: rays refract at the surface, and no amount of lens distortion parameter tuning will correct it. A pinhole optimizer will converge — reprojection error looks “good enough” — but the recovered geometry is systematically biased, and the bias grows with depth. Post-hoc correction does not fix it, because the projection model was never right to begin with.\nAny pipeline imaging through a refractive interface — aquaria, aquaculture, underwater robotics, submerged inspection, semi-aquatic species — inherits this."
-  },
-  {
-    "objectID": "projects/aquacal/index.html#what-i-built",
-    "href": "projects/aquacal/index.html#what-i-built",
-    "title": "AquaCal",
-    "section": "What I built",
-    "text": "What I built\nAquaCal replaces the projection function inside bundle adjustment. The optimization jointly recovers camera extrinsics, a single global water-surface height parameter, and calibration board poses — minimizing refractive reprojection error under Snell’s law rather than pinhole reprojection error.\nFour stages:\n\nIn-air intrinsic calibration per camera (Zhang’s method on a dry ChArUco board), isolating lens-specific parameters from refractive effects.\nExtrinsic initialization via pose-graph traversal from a designated reference camera, alternating between solving for board poses and camera poses along high-confidence edges to minimize error accumulation.\nJoint refractive bundle adjustment — the core optimization. Forward projection reduces to a 1D root-finding problem under the flat-interface symmetry, solved via Newton-Raphson (2–4 iterations to sub-nanometer precision). Bundle adjustment runs through scipy.optimize.least_squares with Huber robust loss and Curtis–Powell–Reid column grouping for sparse-Jacobian efficiency.\nOptional intrinsic refinement jointly with the refractive geometry.\n\nA deliberate design choice: setting the refractive indices to 1.0 reduces AquaCal exactly to a standard pinhole calibration on the same solver. It is a refractive calibration package, but also a drop-in standard calibration package."
-  },
-  {
-    "objectID": "projects/aquacal/index.html#results",
-    "href": "projects/aquacal/index.html#results",
-    "title": "AquaCal",
-    "section": "Results",
-    "text": "Results\nSynthetic validation against a pinhole baseline that shares the same optimizer — differences are attributable to the projection model, not the optimization methodology:\n\n\n\n\n\n\n\n\nMetric\nAquaCal (refractive)\nPinhole baseline\n\n\n\n\nFocal length error\n0.033%\n5.7%\n\n\nCamera Z position error\n0.35 mm\n9.66 mm\n\n\nLateral position error\n0.47 mm\n4.94 mm\n\n\nReprojection RMS\n0.498 px (matches 0.5 px noise floor)\n1.376 px\n\n\n\nDepth generalization — the central empirical claim. Across test depths of 1.1–2.5 m:\n\nRefractive reconstruction RMSE: stable at 0.38–0.42 mm, maximum variation 0.045 mm.\nPinhole RMSE grows with depth: 0.96 mm lateral and 257 mm on the Z axis at 2.5 m — more than two orders of magnitude worse than AquaCal’s 1.9 mm at the same point.\nThe refractive anisotropy ratio (Z/XY) is a stable 2.1–2.5 — a geometric property of the top-down array. The pinhole ratio varies erratically from 0.4 to 5.8.\n\nReal-world validation on the deployed 13-camera hardware rig: 0.674 mm RMSE across 7,762 triangulated inter-corner distances on 52 held-out frames (mean absolute error 0.27 mm, median 0.14 mm). Only modestly higher than the idealized synthetic range — the difference attributable to lens manufacturing variation, board planarity, and corner detection noise rather than to model failure."
-  },
-  {
-    "objectID": "projects/aquacal/index.html#stack",
-    "href": "projects/aquacal/index.html#stack",
-    "title": "AquaCal",
-    "section": "Stack",
-    "text": "Stack\nPython, NumPy, SciPy (scipy.optimize.least_squares with the Trust Region Reflective solver and Huber loss), OpenCV, ChArUco board calibration."
+    "section": "Accuracy",
+    "text": "Accuracy\nSynthetic validation against a pinhole baseline sharing the same optimizer — so differences are attributable to the projection model, not the optimization methodology — recovered camera parameters with substantially lower error across every metric:\n\n\n\n\n\n\n\n\nMetric\nAquaCal (refractive)\nPinhole baseline\n\n\n\n\nFocal length error\n0.033%\n5.7%\n\n\nCamera Z position error\n0.35 mm\n9.66 mm\n\n\nLateral position error\n0.47 mm\n4.94 mm\n\n\nReprojection RMS\n0.498 px (matches 0.5 px noise floor)\n1.376 px\n\n\n\nThe central empirical claim is depth generalization. Across test depths of 1.1–2.5 m, AquaCal’s reconstruction RMSE stays within 0.38–0.42 mm (maximum variation 0.045 mm), while the pinhole baseline climbs to 0.96 mm laterally and 257 mm on the Z axis — more than two orders of magnitude worse than AquaCal’s 1.9 mm at the same point. The refractive anisotropy ratio (Z/XY) is a stable 2.1–2.5, a geometric property of the top-down array; the pinhole ratio varies erratically from 0.4 to 5.8.\nOn the deployed 13-camera hardware rig, real-world validation hit 0.674 mm RMSE across 7,762 triangulated inter-corner distances on 52 held-out frames (mean absolute error 0.27 mm, median 0.14 mm). That is only modestly higher than the idealized synthetic range, with the difference attributable to lens manufacturing variation, board planarity, and corner detection noise rather than model failure.\nStack: Python, NumPy, SciPy (scipy.optimize.least_squares with the Trust Region Reflective solver and Huber loss), OpenCV, ChArUco board calibration."
   },
   {
     "objectID": "projects/aquacal/index.html#links",
@@ -172,42 +109,21 @@
     "href": "projects/aquapose/index.html",
     "title": "AquaPose",
     "section": "",
-    "text": "A vertically integrated pipeline from synchronized multi-camera video to per-fish 3D midline trajectories, holding identity across thousands of frames of heavy occlusion using geometric consistency alone."
+    "text": "AquaPose is a vertically integrated pipeline from synchronized multi-camera video to per-fish 3D midline trajectories, holding identity across thousands of frames of heavy occlusion using geometric consistency alone.\nMulti-camera 3D pose tracking is well-studied for humans, lab mice, and other terrestrial subjects. Three requirements are not: many near-identical subjects, where appearance-based re-identification provides no discriminative signal; refractive imaging geometry, where cameras looking through an air–water interface break the pinhole projection that standard multi-view geometry depends on; and long continuous recordings, where even a 0.01% per-frame identity error compounds to an identity swap every ~5 minutes at 30 fps. These constraints stack. Accurate cross-view association needs accurate 3D geometry; accurate 3D geometry in aquatic settings needs refraction handling; and long-run identity on visually similar subjects needs something other than appearance embeddings. To my knowledge, no existing tool addresses this combination."
   },
   {
-    "objectID": "projects/aquapose/index.html#hook",
-    "href": "projects/aquapose/index.html#hook",
+    "objectID": "projects/aquapose/index.html#pipeline",
+    "href": "projects/aquapose/index.html#pipeline",
     "title": "AquaPose",
-    "section": "",
-    "text": "A vertically integrated pipeline from synchronized multi-camera video to per-fish 3D midline trajectories, holding identity across thousands of frames of heavy occlusion using geometric consistency alone."
+    "section": "Pipeline",
+    "text": "Pipeline\nFive stages move multi-camera video to 3D trajectories:\n\nOriented bounding box detection (Ultralytics YOLO) — rotated boxes that hug elongated bodies at arbitrary orientations, avoiding the wasted crop area of axis-aligned boxes on diagonal subjects.\nSix-keypoint pose estimation on affine-warped crops (YOLO Pose). A midline skeleton (nose → tail) matches the laterally symmetric body plan; branching skeletons used for limbed animals don’t transfer.\nPer-camera tracking via OKSort — a keypoint-based multi-object tracker I packaged as a standalone library because the approach generalizes beyond this application.\nCross-view identity association — per-chunk (300-frame) stateless matching via ray-based affinity scoring under the refractive model, partitioned into identity groups by Leiden community detection. Each chunk re-solves identity from scratch; there is no “lock it in and pray” identity map to drift.\nRefraction-aware triangulation — confidence-weighted DLT under the shared AquaCal refractive projection model, with optional B-spline midline fitting.\n\nLong recordings run as fixed chunks with Kalman and identity state carried across boundaries, so a failure in one chunk cannot propagate. A global stitcher reconciles chunk-local IDs into consistent fish identities using per-fish body length as a biometric to detect and correct residual swaps.\nThe pipeline bootstraps from a small manual annotation set (43 OBB images) and iteratively self-labels: its own 3D reconstructions reproject back into each camera view as pseudo-labels, optionally human-reviewed in Label Studio, then fed into retraining. Thin-plate-spline elastic augmentation synthesizes the high-curvature postures that are behaviorally interesting but underrepresented in real data. A targeted wall-fish augmentation pipeline inpaints easy sand-background fish out of training images, forcing the detector to learn the hard wall-adjacent cases."
   },
   {
-    "objectID": "projects/aquapose/index.html#the-problem",
-    "href": "projects/aquapose/index.html#the-problem",
+    "objectID": "projects/aquapose/index.html#performance",
+    "href": "projects/aquapose/index.html#performance",
     "title": "AquaPose",
-    "section": "The problem",
-    "text": "The problem\nMulti-camera 3D pose tracking is well-studied for humans, lab mice, and other terrestrial subjects. It is not well-studied for the combination of:\n\nMany near-identical subjects under heavy occlusion, where appearance-based re-identification provides no discriminative signal.\nRefractive imaging geometry — cameras looking through an air–water interface, which breaks the pinhole projection model that standard multi-view geometry depends on.\nLong continuous recordings, where even a 0.01% per-frame identity error compounds to an identity swap every ~5 minutes at 30 fps.\n\nThese constraints stack. Accurate cross-view identity association needs accurate 3D geometry; accurate 3D geometry in aquatic settings needs refraction handling; and long-run identity on visually similar subjects needs something other than appearance embeddings. To my knowledge, no existing tool addresses this combination."
-  },
-  {
-    "objectID": "projects/aquapose/index.html#what-i-built",
-    "href": "projects/aquapose/index.html#what-i-built",
-    "title": "AquaPose",
-    "section": "What I built",
-    "text": "What I built\nFive stages, from multi-camera video to 3D trajectories:\n\nOriented bounding box detection (Ultralytics YOLO) — rotated boxes that hug elongated bodies at arbitrary orientations, avoiding the wasted crop area of axis-aligned boxes on diagonal subjects.\nSix-keypoint pose estimation on affine-warped crops (YOLO Pose). A midline skeleton (nose → tail) matches the laterally symmetric body plan; branching skeletons used for limbed animals don’t transfer.\nPer-camera tracking via OKSort — a keypoint-based multi-object tracker I packaged as a standalone library because the approach generalizes beyond this application.\nCross-view identity association — per-chunk (300-frame) stateless matching via ray-based affinity scoring under the refractive model, partitioned into identity groups by Leiden community detection. Each chunk re-solves identity from scratch; there is no “lock it in and pray” identity map to drift.\nRefraction-aware triangulation — confidence-weighted DLT under the shared AquaCal refractive projection model, with optional B-spline midline fitting.\n\nLong recordings run as fixed chunks with Kalman and identity state carried across boundaries, so a failure in one chunk cannot propagate. A global stitcher reconciles chunk-local IDs using per-fish body length as a biometric to detect and correct residual swaps.\nTraining strategy. The pipeline bootstraps from a small manual annotation set (43 OBB images) and iteratively self-labels: its own 3D reconstructions reproject back into each camera view as pseudo-labels, optionally human-reviewed in Label Studio, then fed into retraining. Thin-plate-spline elastic augmentation synthesizes the high-curvature postures that are behaviorally interesting but underrepresented in real data. A targeted wall-fish augmentation pipeline inpaints easy sand-background fish out of training images, forcing the detector to learn the hard wall-adjacent cases."
-  },
-  {
-    "objectID": "projects/aquapose/index.html#results",
-    "href": "projects/aquapose/index.html#results",
-    "title": "AquaPose",
-    "section": "Results",
-    "text": "Results\nEvaluated on 9,450 frames (315 s at 30 fps) of 9 Aulonocara sp. “Yellow Head” across 12 synchronized cameras — median nearest-neighbor distance of 1.0 body length, 14.8% 2D occlusion rate, 6 near-identical females:\n\n1 confirmed identity swap across the full run, occurring in the first 7% of the recording.\n95.6% reconstruction coverage (81,291 of 85,050 possible fish-frames).\nAt least 8 of 9 fish reconstructed in 94.9% of frames.\nMedian reprojection error: 2.82 px.\nEnd-to-end throughput: 4.26 fps across 12 cameras on a single desktop GPU (RTX 4070).\n\nLong-duration stability. On a follow-up 5.8-hour continuous recording (~628,000 frames, 24.5M detections), reconstruction coverage and reprojection error showed no systematic degradation over the run. This is the failure mode that typically kills multi-object trackers on long recordings — identity error compounds frame by frame — and AquaPose avoids it by construction: the per-chunk stateless cross-view association re-solves identity from geometry each window, rather than carrying errors forward indefinitely.\nTraining-data ablations quantified the contribution of each intervention:\n\nOBB detection on wall-adjacent fish improved +25.5 mAP points (0.398 → 0.653 mAP₅₀₋₉₅; 64% relative) from manual-only through pseudo-labeling, hard-case curation, and wall augmentation.\nPose precision rose from 0.948 to 0.992 — a 74% relative error reduction.\nTPS elastic augmentation reduced curvature-dependent accuracy loss on the highest-curvature tercile by 11%."
-  },
-  {
-    "objectID": "projects/aquapose/index.html#stack",
-    "href": "projects/aquapose/index.html#stack",
-    "title": "AquaPose",
-    "section": "Stack",
-    "text": "Stack\nPython, PyTorch, Ultralytics YOLO, OpenCV, NumPy, SciPy, Leiden community detection, SQLite, HDF5, Label Studio."
+    "section": "Performance",
+    "text": "Performance\nEvaluated on 9,450 frames (315 s at 30 fps) of 9 Aulonocara sp. “Yellow Head” across 12 synchronized cameras, under deliberately hard conditions — median nearest-neighbor distance of 1.0 body length, 14.8% 2D occlusion rate, 6 near-identical females — the full pipeline produced one confirmed identity swap across the entire run (occurring in the first 7% of the recording), reconstructed 95.6% of possible fish-frames, held at least 8 of 9 fish in 94.9% of frames, and achieved a median reprojection error of 2.82 pixels. End-to-end throughput on a single desktop GPU (RTX 4070) is 4.26 fps across 12 cameras.\nOn a follow-up 5.8-hour continuous recording (~628,000 frames, 24.5M detections), reconstruction coverage and reprojection error showed no systematic degradation over the run. This is the failure mode that typically kills multi-object trackers on long recordings — identity error compounds frame by frame — and AquaPose avoids it by construction: the per-chunk stateless cross-view association re-solves identity from geometry each window, rather than carrying errors forward indefinitely.\nTraining-data ablations quantified each intervention. Detection on wall-adjacent fish improved +25.5 mAP points (0.398 → 0.653 mAP₅₀₋₉₅, a 64% relative gain) through pseudo-labeling, hard-case curation, and wall augmentation. Pose precision rose from 0.948 to 0.992 — a 74% relative error reduction. TPS elastic augmentation specifically reduced curvature-dependent accuracy loss on the highest-curvature tercile by 11%.\nStack: Python, PyTorch, Ultralytics YOLO, OpenCV, NumPy, SciPy, Leiden community detection, SQLite, HDF5, Label Studio."
   },
   {
     "objectID": "projects/aquapose/index.html#links",
@@ -221,42 +137,21 @@
     "href": "projects/sartab/index.html",
     "title": "SARTAB",
     "section": "",
-    "text": "An end-to-end edge-ML system deployed per experimental tank on $153 of hardware, detecting time-sensitive behavioral events in real time and triggering a human-in-the-loop action window within seconds."
+    "text": "SARTAB is an end-to-end edge-ML system deployed per experimental tank on $153 of hardware, detecting time-sensitive behavioral events in real time and triggering a human-in-the-loop action window within seconds.\nNeurogenomic experiments depend on collecting tissue within a ~60–90 minute window after a specific behavior occurs — miss the window, lose the sample. Doing this by manual observation doesn’t scale: the behavior is rare, the observer is expensive, and running multiple parallel replicates multiplies both problems. Existing real-time pose estimation tools (DLC-Live, EthoLoop) require a GPU-equipped workstation per replicate, which makes per-tank deployment cost-prohibitive and operationally brittle. The engineering constraint was to detect the triggering behavior without human supervision, on inexpensive hardware that replicates tank-by-tank without a GPU in sight."
   },
   {
-    "objectID": "projects/sartab/index.html#hook",
-    "href": "projects/sartab/index.html#hook",
+    "objectID": "projects/sartab/index.html#system",
+    "href": "projects/sartab/index.html#system",
     "title": "SARTAB",
-    "section": "",
-    "text": "An end-to-end edge-ML system deployed per experimental tank on $153 of hardware, detecting time-sensitive behavioral events in real time and triggering a human-in-the-loop action window within seconds."
+    "section": "System",
+    "text": "System\nEach SARTAB unit is a $153 self-contained device: a Raspberry Pi 4 paired with a Pi Camera v2 and a Google Coral USB Edge TPU accelerator. Units mount above experimental tanks and operate independently — capturing video, running inference locally, and emailing notifications when the target behavior is detected.\nObject detection runs in two stages, both networks compiled for the Edge TPU. An ROI detector locates the breeding pipe entrance in the full frame; because the pipe is stationary, this runs once every five minutes and the bounding box is cached. A fish detector (Chindongo demasoni) then runs within the cropped ROI at ~5 fps — well within the TPU’s ~7.5 fps ceiling — while the camera records continuously at 30 fps for archival. Both networks are EfficientDet-Lite0, quantized to int8 via full-integer post-training quantization and compiled with the Google Coral Edge TPU compiler. Lite1 offered marginal accuracy gains (+0.014 mAP) at &gt;50% higher inference time; Lite0 was the right accuracy/latency point for this hardware.\nBehavior detection reduces the complex courtship display to a spatial heuristic. Chindongo demasoni courtship co-occurs reliably with a simple observable: two fish present inside the breeding pipe for more than a few consecutive seconds. The pipeline computes the double-occupancy fraction — proportion of frames in the last 60 s where ROI occupancy was exactly 2 — and compares it every 30 s against a threshold (0.207, set via logistic regression on hand-labeled clips). Threshold exceeded, behavior fires, and the unit emails a short video clip of the event. Notifications are rate-limited (≥10 min between alerts, ≤20 per day) to prevent alert fatigue during extended courtship bouts. At night, the unit switches to a passive mode that converts H.264 recordings to MP4 and uploads them to cloud storage for offline analysis."
   },
   {
-    "objectID": "projects/sartab/index.html#the-problem",
-    "href": "projects/sartab/index.html#the-problem",
+    "objectID": "projects/sartab/index.html#performance",
+    "href": "projects/sartab/index.html#performance",
     "title": "SARTAB",
-    "section": "The problem",
-    "text": "The problem\nNeurogenomic experiments depend on collecting tissue within a ~60–90 minute window after a specific behavior occurs — miss the window, lose the sample. Doing this by manual observation doesn’t scale: the behavior is rare, the observer is expensive, and running multiple parallel replicates multiplies both problems. Existing real-time pose estimation tools (DLC-Live, EthoLoop) require a GPU-equipped workstation per replicate, which makes per-tank deployment cost-prohibitive and operationally brittle.\nThe engineering constraint: detect the triggering behavior continuously, 24/7, on inexpensive hardware that replicates tank-by-tank without a GPU in sight."
-  },
-  {
-    "objectID": "projects/sartab/index.html#what-i-built",
-    "href": "projects/sartab/index.html#what-i-built",
-    "title": "SARTAB",
-    "section": "What I built",
-    "text": "What I built\nSARTAB runs on a $153 self-contained unit — a Raspberry Pi 4 with a Pi Camera v2 and a Google Coral USB Edge TPU accelerator. Each unit mounts above a tank and operates independently: captures video, runs inference locally, emails notifications when the target behavior is detected.\nTwo-stage object detection, both networks compiled for the Edge TPU:\n\nROI detection locates the breeding pipe entrance in the full frame. Because the pipe is stationary, this runs once every 5 minutes and the bounding box is cached.\nFish detection (Chindongo demasoni) runs within the cropped ROI at ~5 fps — well within the TPU’s ~7.5 fps ceiling — while the camera records continuously at 30 fps for archival.\n\nBoth networks are EfficientDet-Lite0 models, quantized to int8 via full-integer post-training quantization and compiled with the Google Coral Edge TPU compiler. Lite1 offered marginal accuracy gains (+0.014 mAP) at &gt;50% higher inference time; Lite0 was the right accuracy/latency point for this hardware.\nBehavior detection reduces the complex courtship display to a spatial heuristic. The Chindongo demasoni courtship sequence co-occurs reliably with a simple observable: two fish present inside the breeding pipe for more than a few consecutive seconds. The pipeline computes the double-occupancy fraction — proportion of frames in the last 60 s where ROI occupancy was exactly 2 — and compares it every 30 s against a threshold (0.207, set via logistic regression on hand-labeled clips). Threshold exceeded, behavior fires.\nNotification closes the loop. On detection, the unit emails a short video clip of the event to the researcher, who visually confirms and decides whether to collect tissue. Notifications are rate-limited (≥10 min between alerts, ≤20 per day) to prevent alert fatigue during extended courtship bouts. At night, the unit switches to a passive mode that converts H.264 recordings to MP4 and uploads them to cloud storage for offline analysis."
-  },
-  {
-    "objectID": "projects/sartab/index.html#results",
-    "href": "projects/sartab/index.html#results",
-    "title": "SARTAB",
-    "section": "Results",
-    "text": "Results\nDetection accuracy on a 221-image validation set:\n\nROI detector: mAP ≈ 0.97 after quantization, vs. 0.999 for a GPU-based YOLO-V5s reference.\nFish detector: mAP 0.72 after quantization, precision 0.948, recall 0.953 — a 0.09 mAP deficit vs. the GPU reference that I accepted to eliminate per-tank GPU hardware.\nQuantization cost: at most 0.022 mAP loss across either detector — a surprisingly cheap tradeoff for TPU compatibility.\nData efficiency: 200 labeled images reach 88% of the full-2007-image performance. Diminishing returns set in early.\n\nClassification robustness:\n\nPerfect classification of all 32 held-out courtship / non-courtship clips, under any threshold between 0.02 and 0.27 — a decision boundary that is itself over an order of magnitude wide. Given the small validation sample, the wide viable range is arguably a stronger signal than the perfect score itself.\nStable at the Edge TPU’s real ~5 fps vs. a 30 fps reference (double-occupancy RMSE &lt; 0.008, threshold shifted by &lt; 0.004).\n\nSARTAB runs a 12-hour detection window each day — matched to when the fish actually court — with video archived and uploaded overnight. To date, the system has enabled my collaborator to collect tissue samples from 32 fish within the critical post-behavior IEG-expression window — extending the neurogenomic profiling paradigm, previously established for bower-building cichlids, to mbuna courtship."
-  },
-  {
-    "objectID": "projects/sartab/index.html#stack",
-    "href": "projects/sartab/index.html#stack",
-    "title": "SARTAB",
-    "section": "Stack",
-    "text": "Stack\nPython, TensorFlow Lite, Google Coral Edge TPU compiler, OpenCV, scikit-learn (logistic regression), FiftyOne (dataset curation). Hardware: Raspberry Pi 4 Model B + Pi Camera v2 + Google Coral USB Accelerator."
+    "section": "Performance",
+    "text": "Performance\nOn a 221-image validation set, the ROI detector achieved mAP ≈ 0.97 after quantization (vs. 0.999 for a GPU-based YOLO-V5s reference), and the fish detector achieved mAP 0.72 after quantization with precision 0.948 and recall 0.953 — a 0.09 mAP deficit vs. the GPU reference that I accepted to eliminate per-tank GPU hardware. Post-training quantization cost at most 0.022 mAP across either detector, a surprisingly cheap tradeoff for TPU compatibility. The detector was also data-efficient: 200 labeled images reached 88% of the full-2007-image performance, with diminishing returns setting in early.\nFor the behavior classifier, every threshold between 0.02 and 0.27 correctly classified all 32 held-out courtship / non-courtship clips. Given the small validation sample, the wide viable range — a decision boundary over an order of magnitude wide — is arguably a stronger signal than the perfect accuracy itself. The classifier also proved stable at the Edge TPU’s real ~5 fps compared to a 30 fps reference (double-occupancy RMSE &lt; 0.008, threshold shifted by &lt; 0.004).\nSARTAB runs a 12-hour detection window each day — matched to when the fish actually court — with video archived and uploaded overnight. To date, the system has enabled my collaborator to collect tissue samples from 32 fish within the critical post-behavior IEG-expression window, extending the neurogenomic profiling paradigm (previously established for bower-building cichlids) to mbuna courtship.\nStack: Python, TensorFlow Lite, Google Coral Edge TPU compiler, OpenCV, scikit-learn (logistic regression), FiftyOne (dataset curation). Hardware: Raspberry Pi 4 Model B + Pi Camera v2 + Google Coral USB Accelerator."
   },
   {
     "objectID": "projects/sartab/index.html#links",

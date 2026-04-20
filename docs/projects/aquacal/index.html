@@ -311,11 +311,8 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#hook" id="toc-hook" class="nav-link active" data-scroll-target="#hook">Hook</a></li>
-  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">The problem</a></li>
-  <li><a href="#what-i-built" id="toc-what-i-built" class="nav-link" data-scroll-target="#what-i-built">What I built</a></li>
-  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
-  <li><a href="#stack" id="toc-stack" class="nav-link" data-scroll-target="#stack">Stack</a></li>
+  <li><a href="#approach" id="toc-approach" class="nav-link active" data-scroll-target="#approach">Approach</a></li>
+  <li><a href="#accuracy" id="toc-accuracy" class="nav-link" data-scroll-target="#accuracy">Accuracy</a></li>
   <li><a href="#links" id="toc-links" class="nav-link" data-scroll-target="#links">Links</a></li>
   </ul>
 </nav>
@@ -358,30 +355,17 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="hook" class="level2">
-<h2 class="anchored" data-anchor-id="hook">Hook</h2>
-<p>A multi-camera calibration package that models the air–water interface as a physical element of the camera system — not as distortion to absorb — eliminating the depth-dependent reconstruction error that the pinhole model fundamentally cannot.</p>
+<p>AquaCal is a multi-camera calibration package that models the air–water interface as a physical element of the camera system — not as distortion to absorb — eliminating the depth-dependent reconstruction error that the pinhole model fundamentally cannot.</p>
+<p>Standard multi-camera calibration tools (OpenCV, COLMAP, Kalibr) assume straight-line light propagation from object to sensor. For cameras imaging across an air–water interface, this is wrong: rays refract at the surface, and no amount of lens distortion parameter tuning will correct it. A pinhole optimizer will converge — reprojection error looks “good enough” — but the recovered geometry is systematically biased, and the bias grows with depth. Post-hoc correction does not fix it, because the projection model was never right to begin with. Any pipeline imaging through a refractive interface — aquaria, aquaculture, underwater robotics, submerged inspection, semi-aquatic species — inherits this.</p>
+<section id="approach" class="level2">
+<h2 class="anchored" data-anchor-id="approach">Approach</h2>
+<p>AquaCal replaces the projection function inside bundle adjustment. The optimization jointly recovers camera extrinsics, a single global water-surface height parameter, and calibration board poses, minimizing refractive reprojection error under Snell’s law rather than pinhole reprojection error.</p>
+<p>The pipeline runs in four stages. Per-camera intrinsics come from in-air video of a dry ChArUco board (Zhang’s method), isolating lens parameters from refractive effects. Extrinsics are initialized via pose-graph traversal, alternating between solving for board poses and camera poses along high-confidence edges to minimize error accumulation. Joint refractive bundle adjustment is then the core optimization: forward projection reduces to a 1D root-finding problem under the flat-interface symmetry, solved via Newton-Raphson to sub-nanometer precision in 2–4 iterations, and wrapped in <code>scipy.optimize.least_squares</code> with Huber robust loss and Curtis–Powell–Reid column grouping for sparse-Jacobian efficiency. An optional fourth stage refines intrinsics jointly with the refractive geometry.</p>
+<p>A deliberate design choice: setting the refractive indices to 1.0 reduces AquaCal exactly to a standard pinhole calibration on the same solver. It is a refractive calibration package, but also a drop-in standard one.</p>
 </section>
-<section id="the-problem" class="level2">
-<h2 class="anchored" data-anchor-id="the-problem">The problem</h2>
-<p>Standard multi-camera calibration (OpenCV, COLMAP, Kalibr) assumes straight-line light propagation from object to sensor. For cameras imaging across an air–water interface, this is wrong: rays refract at the surface, and no amount of lens distortion parameter tuning will correct it. A pinhole optimizer will converge — reprojection error looks “good enough” — but the recovered geometry is systematically biased, and the bias grows with depth. Post-hoc correction does not fix it, because the projection model was never right to begin with.</p>
-<p>Any pipeline imaging through a refractive interface — aquaria, aquaculture, underwater robotics, submerged inspection, semi-aquatic species — inherits this.</p>
-</section>
-<section id="what-i-built" class="level2">
-<h2 class="anchored" data-anchor-id="what-i-built">What I built</h2>
-<p>AquaCal replaces the projection function inside bundle adjustment. The optimization jointly recovers camera extrinsics, a single global water-surface height parameter, and calibration board poses — minimizing refractive reprojection error under Snell’s law rather than pinhole reprojection error.</p>
-<p>Four stages:</p>
-<ol type="1">
-<li><strong>In-air intrinsic calibration</strong> per camera (Zhang’s method on a dry ChArUco board), isolating lens-specific parameters from refractive effects.</li>
-<li><strong>Extrinsic initialization</strong> via pose-graph traversal from a designated reference camera, alternating between solving for board poses and camera poses along high-confidence edges to minimize error accumulation.</li>
-<li><strong>Joint refractive bundle adjustment</strong> — the core optimization. Forward projection reduces to a 1D root-finding problem under the flat-interface symmetry, solved via Newton-Raphson (2–4 iterations to sub-nanometer precision). Bundle adjustment runs through <code>scipy.optimize.least_squares</code> with Huber robust loss and Curtis–Powell–Reid column grouping for sparse-Jacobian efficiency.</li>
-<li><strong>Optional intrinsic refinement</strong> jointly with the refractive geometry.</li>
-</ol>
-<p>A deliberate design choice: setting the refractive indices to 1.0 reduces AquaCal exactly to a standard pinhole calibration on the same solver. It is a refractive calibration package, but also a drop-in standard calibration package.</p>
-</section>
-<section id="results" class="level2">
-<h2 class="anchored" data-anchor-id="results">Results</h2>
-<p><strong>Synthetic validation</strong> against a pinhole baseline that shares the same optimizer — differences are attributable to the projection model, not the optimization methodology:</p>
+<section id="accuracy" class="level2">
+<h2 class="anchored" data-anchor-id="accuracy">Accuracy</h2>
+<p>Synthetic validation against a pinhole baseline sharing the same optimizer — so differences are attributable to the projection model, not the optimization methodology — recovered camera parameters with substantially lower error across every metric:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -418,17 +402,9 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 </tbody>
 </table>
-<p><strong>Depth generalization</strong> — the central empirical claim. Across test depths of 1.1–2.5 m:</p>
-<ul>
-<li>Refractive reconstruction RMSE: <strong>stable at 0.38–0.42 mm</strong>, maximum variation 0.045 mm.</li>
-<li>Pinhole RMSE grows with depth: 0.96 mm lateral and <strong>257 mm on the Z axis</strong> at 2.5 m — <strong>more than two orders of magnitude</strong> worse than AquaCal’s 1.9 mm at the same point.</li>
-<li>The refractive anisotropy ratio (Z/XY) is a stable 2.1–2.5 — a geometric property of the top-down array. The pinhole ratio varies erratically from 0.4 to 5.8.</li>
-</ul>
-<p><strong>Real-world validation</strong> on the deployed 13-camera hardware rig: <strong>0.674 mm RMSE</strong> across 7,762 triangulated inter-corner distances on 52 held-out frames (mean absolute error 0.27 mm, median 0.14 mm). Only modestly higher than the idealized synthetic range — the difference attributable to lens manufacturing variation, board planarity, and corner detection noise rather than to model failure.</p>
-</section>
-<section id="stack" class="level2">
-<h2 class="anchored" data-anchor-id="stack">Stack</h2>
-<p>Python, NumPy, SciPy (<code>scipy.optimize.least_squares</code> with the Trust Region Reflective solver and Huber loss), OpenCV, ChArUco board calibration.</p>
+<p>The central empirical claim is depth generalization. Across test depths of 1.1–2.5 m, AquaCal’s reconstruction RMSE stays within 0.38–0.42 mm (maximum variation 0.045 mm), while the pinhole baseline climbs to 0.96 mm laterally and 257 mm on the Z axis — more than two orders of magnitude worse than AquaCal’s 1.9 mm at the same point. The refractive anisotropy ratio (Z/XY) is a stable 2.1–2.5, a geometric property of the top-down array; the pinhole ratio varies erratically from 0.4 to 5.8.</p>
+<p>On the deployed 13-camera hardware rig, real-world validation hit 0.674 mm RMSE across 7,762 triangulated inter-corner distances on 52 held-out frames (mean absolute error 0.27 mm, median 0.14 mm). That is only modestly higher than the idealized synthetic range, with the difference attributable to lens manufacturing variation, board planarity, and corner detection noise rather than model failure.</p>
+<p><strong>Stack:</strong> Python, NumPy, SciPy (<code>scipy.optimize.least_squares</code> with the Trust Region Reflective solver and Huber loss), OpenCV, ChArUco board calibration.</p>
 </section>
 <section id="links" class="level2">
 <h2 class="anchored" data-anchor-id="links">Links</h2>
